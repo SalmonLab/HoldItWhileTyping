@@ -369,6 +369,7 @@ internal sealed class FocusGuardService : IDisposable
     private IntPtr _foregroundHook = IntPtr.Zero;
     private IntPtr _anchorWindow = IntPtr.Zero;
     private DateTime _lastInputUtc = DateTime.UtcNow;
+    private InputSource _lastInputSource = InputSource.None;
     private bool _running;
     private bool _restoring;
     private readonly object _syncRoot = new();
@@ -476,7 +477,7 @@ internal sealed class FocusGuardService : IDisposable
             var message = wParam.ToInt32();
             if (message is WM_KEYDOWN or WM_KEYUP or WM_SYSKEYDOWN or WM_SYSKEYUP)
             {
-                CaptureInput();
+                CaptureInput(InputSource.Keyboard);
             }
         }
 
@@ -495,7 +496,7 @@ internal sealed class FocusGuardService : IDisposable
                 message == WM_NCLBUTTONDOWN ||
                 message == WM_NCRBUTTONDOWN)
             {
-                CaptureInput();
+                CaptureInput(InputSource.Mouse);
             }
         }
 
@@ -541,6 +542,13 @@ internal sealed class FocusGuardService : IDisposable
             }
 
             var elapsedMs = (DateTime.UtcNow - _lastInputUtc).TotalMilliseconds;
+
+            if (_lastInputSource == InputSource.Mouse && elapsedMs <= LockMilliseconds)
+            {
+                CaptureAnchorWindow(hwnd);
+                return;
+            }
+
             if (elapsedMs > LockMilliseconds)
             {
                 CaptureAnchorWindow(hwnd);
@@ -560,11 +568,12 @@ internal sealed class FocusGuardService : IDisposable
         }
     }
 
-    private void CaptureInput()
+    private void CaptureInput(InputSource source)
     {
         lock (_syncRoot)
         {
             _lastInputUtc = DateTime.UtcNow;
+            _lastInputSource = source;
             CaptureAnchorWindow(Native.GetForegroundWindow());
         }
     }
@@ -733,6 +742,13 @@ internal sealed class FocusGuardService : IDisposable
         int idChild,
         uint dwEventThread,
         uint dwmsEventTime);
+}
+
+internal enum InputSource
+{
+    None,
+    Keyboard,
+    Mouse
 }
 
 internal sealed class ExcludedApplicationsDialog : Form
