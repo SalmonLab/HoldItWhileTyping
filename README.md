@@ -53,13 +53,13 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 
 ## Download
 
-Latest public release: `v1.0.1`
+Latest public release: `v1.0.2`
 
 - Recommended (safe):  
-  [HoldItWhileTyping-v1.0.1-win-x64-publish.zip](https://github.com/SalmonLab/HoldItWhileTyping/releases/download/v1.0.1/HoldItWhileTyping-v1.0.1-win-x64-publish.zip)
+  [HoldItWhileTyping-v1.0.2-win-x64-publish.zip](https://github.com/SalmonLab/HoldItWhileTyping/releases/download/v1.0.2/HoldItWhileTyping-v1.0.2-win-x64-publish.zip)
   - Extract and run `HoldItWhileTyping.exe` from the zip.
 - Single executable:
-  [HoldItWhileTyping.exe](https://github.com/SalmonLab/HoldItWhileTyping/releases/download/v1.0.1/HoldItWhileTyping.exe)
+  [HoldItWhileTyping.exe](https://github.com/SalmonLab/HoldItWhileTyping/releases/download/v1.0.2/HoldItWhileTyping.exe)
 
 ## Notes
 
