@@ -5,6 +5,7 @@ This project is a Windows tray app that keeps the current window active for a sh
 ## What it does
 
 - Runs as a tray app with an icon.
+- Supports startup launch: optional tray menu item "Run at startup".
 - Detects keyboard and mouse button input (low-level hooks).
 - While input has happened in the last configured timeout window, it restores the previous foreground window if a different window becomes active.
 - Allows configuring the timeout from the tray menu:
@@ -29,6 +30,7 @@ Example settings:
   "Enabled": true,
   "LockMilliseconds": 2000,
   "TransparentMode": false,
+  "RunAtStartup": false,
   "ExcludedProcesses": [
     "teams",
     "slack"

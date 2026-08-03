@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using Microsoft.Win32;
 using System.Text.Json;
 using System.Windows.Forms;
 
@@ -29,12 +30,15 @@ internal sealed class HoldItContext : ApplicationContext
     private readonly FocusGuardService _focusGuard;
     private readonly HoldItSettings _settings;
     private readonly ToolStripMenuItem _enabledMenuItem;
+    private readonly ToolStripMenuItem _runAtStartupMenuItem;
     private readonly ToolStripMenuItem _timeoutMenuItem;
     private readonly ToolStripMenuItem[] _timeoutChoices;
     private readonly ToolStripMenuItem _transparentModeMenuItem;
     private readonly ToolStripMenuItem _excludedAppsMenuItem;
     private readonly ToolStripMenuItem _statusMenuItem;
     private readonly int[] _timeoutChoicesMs = new[] { 800, 1200, 2000, 3000, 5000 };
+    private const string StartupValueName = "HoldItWhileTyping";
+    private const string StartupRegistryPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
 
     public HoldItContext()
     {
@@ -59,6 +63,16 @@ internal sealed class HoldItContext : ApplicationContext
             _settings.Enabled = enabled;
             UpdateStatusText();
             _settings.Save();
+        };
+
+        _runAtStartupMenuItem = new ToolStripMenuItem("Run at startup")
+        {
+            Checked = _settings.RunAtStartup,
+            CheckOnClick = true
+        };
+        _runAtStartupMenuItem.Click += (_, _) =>
+        {
+            SetRunAtStartup(_runAtStartupMenuItem.Checked);
         };
 
         _timeoutMenuItem = new ToolStripMenuItem("Hold timeout (ms)");
@@ -91,6 +105,7 @@ internal sealed class HoldItContext : ApplicationContext
         _excludedAppsMenuItem.Click += (_, _) => EditExcludedApplications();
 
         SetTimeout(_settings.LockMilliseconds, save: false);
+        SetRunAtStartup(_settings.RunAtStartup, save: false);
         SetTransparentMode(_settings.TransparentMode, save: false);
         SetExcludedProcesses(_settings.ExcludedProcesses, save: false);
 
@@ -104,6 +119,7 @@ internal sealed class HoldItContext : ApplicationContext
         menu.Items.Add(_statusMenuItem);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(_enabledMenuItem);
+        menu.Items.Add(_runAtStartupMenuItem);
         menu.Items.Add(_timeoutMenuItem);
         menu.Items.Add(_transparentModeMenuItem);
         menu.Items.Add(_excludedAppsMenuItem);
@@ -150,6 +166,44 @@ internal sealed class HoldItContext : ApplicationContext
         if (save)
         {
             _settings.Save();
+        }
+    }
+
+    private void SetRunAtStartup(bool enabled, bool save = true)
+    {
+        var exePath = Process.GetCurrentProcess().MainModule?.FileName;
+        if (string.IsNullOrWhiteSpace(exePath))
+        {
+            return;
+        }
+
+        try
+        {
+            using var key = Registry.CurrentUser.CreateSubKey(StartupRegistryPath);
+            if (key is null)
+            {
+                return;
+            }
+
+            if (enabled)
+            {
+                key.SetValue(StartupValueName, $"\"{exePath}\"");
+            }
+            else
+            {
+                key.DeleteValue(StartupValueName, false);
+            }
+
+            _settings.RunAtStartup = enabled;
+            _runAtStartupMenuItem.Checked = enabled;
+
+            if (save)
+            {
+                _settings.Save();
+            }
+        }
+        catch
+        {
         }
     }
 
@@ -227,6 +281,7 @@ internal sealed class HoldItSettings
     public bool Enabled { get; set; } = true;
     public int LockMilliseconds { get; set; } = 2000;
     public bool TransparentMode { get; set; } = false;
+    public bool RunAtStartup { get; set; } = false;
     public string[] ExcludedProcesses { get; set; } = Array.Empty<string>();
 
     private static string SettingsFolder =>
