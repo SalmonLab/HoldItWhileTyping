@@ -364,12 +364,14 @@ internal sealed class FocusGuardService : IDisposable
     private const uint SWP_NOMOVE = 0x0002;
     private const uint SWP_SHOWWINDOW = 0x0040;
     private const uint SWP_ASYNCWINDOWPOS = 0x4000;
+    private const int MouseClickUnlockWindowMs = 1500;
     private IntPtr _keyboardHook = IntPtr.Zero;
     private IntPtr _mouseHook = IntPtr.Zero;
     private IntPtr _foregroundHook = IntPtr.Zero;
     private IntPtr _anchorWindow = IntPtr.Zero;
     private DateTime _lastInputUtc = DateTime.UtcNow;
-    private InputSource _lastInputSource = InputSource.None;
+    private DateTime _lastKeyboardInputUtc = DateTime.MinValue;
+    private DateTime _mouseClickUnlockUntilUtc = DateTime.MinValue;
     private bool _running;
     private bool _restoring;
     private readonly object _syncRoot = new();
@@ -541,9 +543,10 @@ internal sealed class FocusGuardService : IDisposable
                 return;
             }
 
-            var elapsedMs = (DateTime.UtcNow - _lastInputUtc).TotalMilliseconds;
+            var now = DateTime.UtcNow;
+            var elapsedMs = (now - _lastInputUtc).TotalMilliseconds;
 
-            if (_lastInputSource == InputSource.Mouse && elapsedMs <= LockMilliseconds)
+            if (now <= _mouseClickUnlockUntilUtc && !IsTypingRecently(now))
             {
                 CaptureAnchorWindow(hwnd);
                 return;
@@ -572,10 +575,24 @@ internal sealed class FocusGuardService : IDisposable
     {
         lock (_syncRoot)
         {
-            _lastInputUtc = DateTime.UtcNow;
-            _lastInputSource = source;
+            var now = DateTime.UtcNow;
+            _lastInputUtc = now;
+            if (source == InputSource.Mouse)
+            {
+                _mouseClickUnlockUntilUtc = now.AddMilliseconds(MouseClickUnlockWindowMs);
+            }
+            else
+            {
+                _mouseClickUnlockUntilUtc = DateTime.MinValue;
+                _lastKeyboardInputUtc = now;
+            }
             CaptureAnchorWindow(Native.GetForegroundWindow());
         }
+    }
+
+    private bool IsTypingRecently(DateTime now)
+    {
+        return (now - _lastKeyboardInputUtc).TotalMilliseconds <= LockMilliseconds;
     }
 
     private void CaptureAnchorWindow(IntPtr hwnd)
